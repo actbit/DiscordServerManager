@@ -54,6 +54,13 @@ namespace DiscordServerManager.Services
                     Console.WriteLine($"移行完了: {guildId}");
                 }
 
+                // ServerIDが0の場合はファイル名から設定
+                if (data.ServerID == 0 && ulong.TryParse(guildId, out var serverId))
+                {
+                    data.ServerID = serverId;
+                    Console.WriteLine($"ServerID修正: {serverId}");
+                }
+
                 // JSON保存
                 SaveServerData(data);
 

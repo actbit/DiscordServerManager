@@ -1,17 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Newtonsoft.Json;
 
 namespace DiscordServerManager.Data
 {
     public class CategoryDataClass
     {
+        [JsonProperty("CategoryID")]
         public ulong CategoryID { get; set; }
-        public ulong? RoleId { get; set; } = null;
-        public ulong? UserId { get; set; } = null;
 
-        //public MakeChannelBaseClass ChannelBase { get; set; } = new MakeChannelBaseClass();
+        [JsonProperty("RoleId")]
+        public ulong? RoleId { get; set; }
+
+        [JsonProperty("UserId")]
+        public ulong? UserId { get; set; }
     }
 }

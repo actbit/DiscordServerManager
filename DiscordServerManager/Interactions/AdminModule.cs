@@ -1,11 +1,13 @@
 using Discord;
 using Discord.Interactions;
 using DiscordServerManager.Data;
+using DiscordServerManager.Preconditions;
 using DiscordServerManager.Services;
 
 namespace DiscordServerManager.Interactions
 {
     [Group("admin", "管理者が使用するコマンドです")]
+    [RequireAdmin]
     public class AdminModule : InteractionModuleBase<SocketInteractionContext>
     {
         public ServerService ServerService { get; set; } = null!;

@@ -11,7 +11,6 @@ namespace DiscordServerManager
         private readonly DiscordSocketClient _client;
         private readonly InteractionService _interactions;
         private readonly IServiceProvider _services;
-        private readonly string _serversDirectory;
 
         static async Task Main(string[] args)
         {
@@ -44,11 +43,9 @@ namespace DiscordServerManager
 
         public Program(string basePath, string serversDirectory)
         {
-            _serversDirectory = serversDirectory;
-
             _client = new DiscordSocketClient(new DiscordSocketConfig
             {
-                GatewayIntents = GatewayIntents.All,
+                GatewayIntents = GatewayIntents.Guilds | GatewayIntents.GuildMembers,
                 AlwaysDownloadUsers = true
             });
 

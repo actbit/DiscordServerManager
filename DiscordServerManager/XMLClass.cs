@@ -7,6 +7,10 @@ using System.Xml.Serialization;
 
 namespace DiscordServerManager
 {
+    /// <summary>
+    /// XML形式のサーバーデータ移行用クラス
+    /// JSON移行完了後は不要になります
+    /// </summary>
     internal class XMLClass
     {
         public static string SaveToFile<T>(T control)
