@@ -25,8 +25,8 @@ namespace DiscordServerManager
         public static T LoadFromFile<T>(string s)
         {
             var serializer = new XmlSerializer(typeof(T));
-            var deserializedBook = (T)serializer.Deserialize(new StringReader(s));
-            return deserializedBook;
+            var deserializedBook = serializer.Deserialize(new StringReader(s));
+            return (T)(deserializedBook ?? throw new InvalidOperationException("デシリアライズに失敗しました"));
         }
     }
 }
