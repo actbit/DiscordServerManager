@@ -7,10 +7,10 @@ namespace DiscordServerManager.Data
         [JsonProperty("CategoryID")]
         public ulong CategoryID { get; set; }
 
-        [JsonProperty("RoleId")]
-        public ulong? RoleId { get; set; }
+        [JsonProperty("RoleIds")]
+        public List<ulong> RoleIds { get; set; } = new();
 
-        [JsonProperty("UserId")]
-        public ulong? UserId { get; set; }
+        [JsonProperty("UserIds")]
+        public List<ulong> UserIds { get; set; } = new();
     }
 }

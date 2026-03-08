@@ -1,5 +1,6 @@
 using DiscordServerManager.Data;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace DiscordServerManager.Services
 {
@@ -11,6 +12,70 @@ namespace DiscordServerManager.Services
         {
             _serversDirectory = serversDirectory;
             MigrateXmlToJson();
+            MigrateCategoryDataFormat();
+        }
+
+        /// <summary>
+        /// 古い形式（RoleId, UserIdが単一値）から新しい形式（RoleIds, UserIdsがリスト）に移行
+        /// </summary>
+        private void MigrateCategoryDataFormat()
+        {
+            var jsonFiles = Directory.GetFiles(_serversDirectory, "*.json");
+
+            foreach (var jsonPath in jsonFiles)
+            {
+                try
+                {
+                    var json = File.ReadAllText(jsonPath, System.Text.Encoding.UTF8);
+                    var jObj = JObject.Parse(json);
+
+                    var categorys = jObj["Categorys"] as JArray;
+                    if (categorys == null) continue;
+
+                    bool modified = false;
+
+                    foreach (var category in categorys)
+                    {
+                        // 古い RoleId → 新しい RoleIds
+                        var oldRoleId = category["RoleId"];
+                        if (oldRoleId != null && category["RoleIds"] == null)
+                        {
+                            var roleIds = new JArray();
+                            if (oldRoleId.Type != JTokenType.Null && oldRoleId.Value<ulong>() != 0)
+                            {
+                                roleIds.Add(oldRoleId.Value<ulong>());
+                            }
+                            category["RoleIds"] = roleIds;
+                            category["RoleId"]?.Remove();
+                            modified = true;
+                        }
+
+                        // 古い UserId → 新しい UserIds
+                        var oldUserId = category["UserId"];
+                        if (oldUserId != null && category["UserIds"] == null)
+                        {
+                            var userIds = new JArray();
+                            if (oldUserId.Type != JTokenType.Null && oldUserId.Value<ulong>() != 0)
+                            {
+                                userIds.Add(oldUserId.Value<ulong>());
+                            }
+                            category["UserIds"] = userIds;
+                            category["UserId"]?.Remove();
+                            modified = true;
+                        }
+                    }
+
+                    if (modified)
+                    {
+                        File.WriteAllText(jsonPath, jObj.ToString(Formatting.Indented), System.Text.Encoding.UTF8);
+                        Console.WriteLine($"カテゴリデータ形式移行完了: {Path.GetFileNameWithoutExtension(jsonPath)}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"カテゴリデータ形式移行エラー ({Path.GetFileName(jsonPath)}): {ex.Message}");
+                }
+            }
         }
 
         private void MigrateXmlToJson()

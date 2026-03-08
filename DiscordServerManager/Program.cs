@@ -100,11 +100,19 @@ namespace DiscordServerManager
 
                 if (!result.IsSuccess)
                 {
-                    Console.WriteLine($"[ERROR] コマンド実行エラー: {result.ErrorReason}");
+                    var message = result.Error switch
+                    {
+                        InteractionCommandError.UnmetPrecondition => result.ErrorReason,
+                        InteractionCommandError.BadArgs => "引数が正しくありません",
+                        InteractionCommandError.ParseFailed => "コマンドの解析に失敗しました",
+                        _ => $"エラー: {result.ErrorReason}"
+                    };
+
+                    Console.WriteLine($"[ERROR] {result.Error}: {result.ErrorReason}");
 
                     if (!arg.HasResponded)
                     {
-                        await arg.RespondAsync($"エラーが発生しました: {result.ErrorReason}", ephemeral: true);
+                        await arg.RespondAsync(message, ephemeral: true);
                     }
                 }
             }

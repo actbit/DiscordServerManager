@@ -42,8 +42,8 @@ namespace DiscordServerManager.Interactions
                 }
 
                 // 権限チェック
-                bool hasPermission = categorydata.UserId == Context.User.Id ||
-                    (guser != null && categorydata.RoleId != null && guser.RoleIds.Contains((ulong)categorydata.RoleId));
+                bool hasPermission = categorydata.UserIds.Contains(Context.User.Id) ||
+                    (guser != null && categorydata.RoleIds.Any(roleId => guser.RoleIds.Contains(roleId)));
 
                 if (!hasPermission)
                 {
@@ -51,14 +51,12 @@ namespace DiscordServerManager.Interactions
                     return;
                 }
 
+                ITextChannel? newChannel = null;
+
                 try
                 {
-                    var newChannel = await Context.Guild.CreateTextChannelAsync(name,
+                    newChannel = await Context.Guild.CreateTextChannelAsync(name,
                         prop => prop.CategoryId = categorydata.CategoryID);
-
-                    await RespondAsync($"<#{newChannel.Id}>を作成しました。");
-
-                    await newChannel.SendMessageAsync($"{Context.User.Mention}が管理するチャンネルです");
 
                     var overwrite = new OverwritePermissions(
                         manageChannel: PermValue.Allow,
@@ -76,10 +74,19 @@ namespace DiscordServerManager.Interactions
                     );
 
                     await newChannel.AddPermissionOverwriteAsync(Context.User, overwrite);
+
+                    await RespondAsync($"<#{newChannel.Id}>を作成しました。");
+                    await newChannel.SendMessageAsync($"{Context.User.Mention}が管理するチャンネルです");
                 }
                 catch (Exception e)
                 {
-                    await FollowupAsync(e.Message, ephemeral: true);
+                    // エラー時は作成したチャンネルを削除
+                    if (newChannel != null)
+                    {
+                        try { await newChannel.DeleteAsync(); } catch { }
+                    }
+
+                    await RespondAsync($"エラー: {e.Message}");
                 }
             }
         }
