@@ -61,22 +61,18 @@ namespace DiscordServerManager.Interactions
                     await newChannel.SendMessageAsync($"{Context.User.Mention}が管理するチャンネルです");
 
                     var overwrite = new OverwritePermissions(
-                        createInstantInvite: PermValue.Inherit,
                         manageChannel: PermValue.Allow,
                         viewChannel: PermValue.Allow,
                         sendMessages: PermValue.Allow,
-                        sendTTSMessages: PermValue.Allow,
                         manageMessages: PermValue.Allow,
                         embedLinks: PermValue.Allow,
                         attachFiles: PermValue.Allow,
                         readMessageHistory: PermValue.Allow,
-                        mentionEveryone: PermValue.Inherit,
-                        useExternalEmojis: PermValue.Allow,
                         manageRoles: PermValue.Allow,
                         manageThreads: PermValue.Allow,
-                        createPrivateThreads: PermValue.Allow,
+                        usePublicThreads: PermValue.Allow,
                         usePrivateThreads: PermValue.Allow,
-                        usePublicThreads: PermValue.Allow
+                        createPrivateThreads: PermValue.Allow
                     );
 
                     await newChannel.AddPermissionOverwriteAsync(Context.User, overwrite);

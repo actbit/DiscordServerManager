@@ -78,6 +78,8 @@ namespace DiscordServerManager.Interactions
                 foreach (var categoryData in server.Categorys)
                 {
                     var category = Context.Guild.GetChannel(categoryData.CategoryID);
+                    if (category == null) continue;
+
                     var addword = categoryData.UserId != null
                         ? $"<@!{categoryData.UserId}>"
                         : $"<@&{categoryData.RoleId}>";
