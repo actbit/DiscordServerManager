@@ -79,18 +79,18 @@ namespace DiscordServerManager
             // モジュールを登録
             await _interactions.AddModulesAsync(typeof(Program).Assembly, _services);
 
-            // ギルドコマンドとして登録（即座に反映）
-            var guild = _client.GetGuild(667884699347058701);
-            if (guild != null)
+            // 参加している全ギルドにコマンド登録
+            foreach (var guild in _client.Guilds)
             {
-                await _interactions.RegisterCommandsToGuildAsync(guild.Id);
-                Console.WriteLine($"コマンドをギルド {guild.Id} に登録しました");
-            }
-            else
-            {
-                // ギルドが見つからない場合はグローバルコマンドとして登録
-                await _interactions.RegisterCommandsGloballyAsync();
-                Console.WriteLine("コマンドをグローバルに登録しました（反映まで最大1時間）");
+                try
+                {
+                    await _interactions.RegisterCommandsToGuildAsync(guild.Id);
+                    Console.WriteLine($"コマンドを登録: {guild.Name}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"登録エラー ({guild.Name}): {ex.Message}");
+                }
             }
         }
 
