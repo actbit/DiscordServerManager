@@ -1,3 +1,4 @@
+using Discord;
 using DiscordServerManager.Data;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -13,6 +14,76 @@ namespace DiscordServerManager.Services
             _serversDirectory = serversDirectory;
             MigrateXmlToJson();
             MigrateCategoryDataFormat();
+        }
+
+        /// <summary>
+        /// 存在しないカテゴリ/ロールのIDを削除してクリーンアップ
+        /// </summary>
+        public void CleanupServerData(IGuild guild)
+        {
+            var server = GetServerData(guild.Id);
+            bool modified = false;
+
+            // 存在しないカテゴリを削除
+            var categoriesToRemove = server.Categorys
+                .Where(c => guild.GetChannelAsync(c.CategoryID).Result == null)
+                .ToList();
+
+            foreach (var category in categoriesToRemove)
+            {
+                server.Categorys.Remove(category);
+                Console.WriteLine($"[Cleanup] 削除されたカテゴリを除外: {category.CategoryID}");
+                modified = true;
+            }
+
+            // 各カテゴリで存在しないロールを削除
+            var guildRoleIds = guild.Roles.Select(r => r.Id).ToHashSet();
+
+            foreach (var category in server.Categorys)
+            {
+                var rolesToRemove = category.RoleIds
+                    .Where(roleId => !guildRoleIds.Contains(roleId))
+                    .ToList();
+
+                foreach (var roleId in rolesToRemove)
+                {
+                    category.RoleIds.Remove(roleId);
+                    Console.WriteLine($"[Cleanup] 削除されたロールを除外: {roleId}");
+                    modified = true;
+                }
+            }
+
+            // AdminRoleIDsから存在しないロールを削除
+            var adminRolesToRemove = server.AdminRoleIDs
+                .Where(roleId => !guildRoleIds.Contains(roleId))
+                .ToList();
+
+            foreach (var roleId in adminRolesToRemove)
+            {
+                server.AdminRoleIDs.Remove(roleId);
+                Console.WriteLine($"[Cleanup] 削除された管理者ロールを除外: {roleId}");
+                modified = true;
+            }
+
+            // AdminUserIDsから存在しないユーザーを削除
+            // 注意: オフラインユーザーもいるため、取得できたユーザーのみチェック
+            var guildUserIds = guild.GetUsersAsync().Result.Select(u => u.Id).ToHashSet();
+
+            var adminUsersToRemove = server.AdminUserIDs
+                .Where(userId => !guildUserIds.Contains(userId))
+                .ToList();
+
+            foreach (var userId in adminUsersToRemove)
+            {
+                server.AdminUserIDs.Remove(userId);
+                Console.WriteLine($"[Cleanup] 削除された管理者ユーザーを除外: {userId}");
+                modified = true;
+            }
+
+            if (modified)
+            {
+                SaveServerData(server);
+            }
         }
 
         /// <summary>

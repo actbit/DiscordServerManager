@@ -89,6 +89,23 @@ namespace DiscordServerManager
                     Console.WriteLine($"登録エラー ({guild.Name}): {ex.Message}");
                 }
             }
+
+            // 存在しないカテゴリ/ロール/ユーザーをクリーンアップ
+            var serverService = _services.GetService(typeof(ServerService)) as ServerService;
+            if (serverService != null)
+            {
+                foreach (var guild in _client.Guilds)
+                {
+                    try
+                    {
+                        serverService.CleanupServerData(guild);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"クリーンアップエラー ({guild.Name}): {ex.Message}");
+                    }
+                }
+            }
         }
 
         private async Task InteractionCreated(SocketInteraction arg)
