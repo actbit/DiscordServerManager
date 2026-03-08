@@ -25,7 +25,7 @@ namespace DiscordServerManager
                 throw new Exception("config.jsonにTokenが設定されていません");
             }
 
-            Token = config.Token;
+            Token = config.Token.Trim();
         }
     }
 
