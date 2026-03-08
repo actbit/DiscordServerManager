@@ -1,4 +1,5 @@
 using DiscordServerManager.Data;
+using Newtonsoft.Json;
 
 namespace DiscordServerManager.Services
 {
@@ -9,16 +10,97 @@ namespace DiscordServerManager.Services
         public ServerService(string serversDirectory)
         {
             _serversDirectory = serversDirectory;
+            MigrateXmlToJson();
+        }
+
+        private void MigrateXmlToJson()
+        {
+            var xmlFiles = Directory.GetFiles(_serversDirectory, "*.xml");
+
+            foreach (var xmlPath in xmlFiles)
+            {
+                var guildId = Path.GetFileNameWithoutExtension(xmlPath);
+                var jsonPath = Path.Combine(_serversDirectory, guildId + ".json");
+
+                ServerDataClass data;
+
+                if (File.Exists(jsonPath))
+                {
+                    // 両方ある場合はマージ
+                    var xmlText = File.ReadAllText(xmlPath, System.Text.Encoding.UTF8);
+                    var jsonData = File.ReadAllText(jsonPath, System.Text.Encoding.UTF8);
+
+                    var xmlData = XMLClass.LoadFromFile<ServerDataClass>(xmlText);
+                    var jsonDataObj = JsonConvert.DeserializeObject<ServerDataClass>(jsonData);
+
+                    if (jsonDataObj != null)
+                    {
+                        // XMLのデータを優先してマージ
+                        MergeData(xmlData, jsonDataObj);
+                        data = xmlData;
+                    }
+                    else
+                    {
+                        data = xmlData;
+                    }
+
+                    Console.WriteLine($"マージ完了: {guildId}");
+                }
+                else
+                {
+                    // XMLのみ → JSONに変換
+                    var xmlText = File.ReadAllText(xmlPath, System.Text.Encoding.UTF8);
+                    data = XMLClass.LoadFromFile<ServerDataClass>(xmlText);
+                    Console.WriteLine($"移行完了: {guildId}");
+                }
+
+                // JSON保存
+                SaveServerData(data);
+
+                // XML削除
+                File.Delete(xmlPath);
+            }
+        }
+
+        private void MergeData(ServerDataClass source, ServerDataClass target)
+        {
+            // sourceのデータを優先
+            foreach (var category in source.Categorys)
+            {
+                var existing = target.Categorys.FirstOrDefault(c => c.CategoryID == category.CategoryID);
+                if (existing != null)
+                {
+                    target.Categorys.Remove(existing);
+                }
+                target.Categorys.Add(category);
+            }
+
+            foreach (var adminUser in source.AdminUserIDs)
+            {
+                if (!target.AdminUserIDs.Contains(adminUser))
+                {
+                    target.AdminUserIDs.Add(adminUser);
+                }
+            }
+
+            foreach (var adminRole in source.AdminRoleIDs)
+            {
+                if (!target.AdminRoleIDs.Contains(adminRole))
+                {
+                    target.AdminRoleIDs.Add(adminRole);
+                }
+            }
         }
 
         public ServerDataClass GetServerData(ulong guildId)
         {
-            var path = Path.Combine(_serversDirectory, guildId + ".xml");
+            var jsonPath = Path.Combine(_serversDirectory, guildId + ".json");
 
-            if (File.Exists(path))
+            if (File.Exists(jsonPath))
             {
-                var text = File.ReadAllText(path, System.Text.Encoding.UTF8);
-                return XMLClass.LoadFromFile<ServerDataClass>(text);
+                var json = File.ReadAllText(jsonPath, System.Text.Encoding.UTF8);
+                var data = JsonConvert.DeserializeObject<ServerDataClass>(json);
+                if (data != null) return data;
             }
 
             return new ServerDataClass { ServerID = guildId };
@@ -26,9 +108,9 @@ namespace DiscordServerManager.Services
 
         public void SaveServerData(ServerDataClass server)
         {
-            var path = Path.Combine(_serversDirectory, server.ServerID + ".xml");
-            var save = XMLClass.SaveToFile(server);
-            File.WriteAllText(path, save, System.Text.Encoding.UTF8);
+            var jsonPath = Path.Combine(_serversDirectory, server.ServerID + ".json");
+            var json = JsonConvert.SerializeObject(server, Formatting.Indented);
+            File.WriteAllText(jsonPath, json, System.Text.Encoding.UTF8);
         }
     }
 }
