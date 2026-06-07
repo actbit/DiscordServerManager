@@ -20,45 +20,96 @@ namespace DiscordServerManager.Interactions
                 string name,
                 [ChannelTypes(ChannelType.Category)] IChannel? category = null)
             {
-                var server = ServerService.GetServerData(Context.Guild.Id);
-                var guser = Context.User as IGuildUser;
+                await DeferAsync(ephemeral: true);
 
-                CategoryDataClass? categorydata = null;
+                try
+                {
+                    var server = ServerService.GetServerData(Context.Guild.Id);
+                    var guildUser = Context.User as IGuildUser;
 
-                // 指定されたカテゴリまたは現在のチャンネルのカテゴリを確認
+                    if (guildUser == null)
+                    {
+                        await FollowupAsync("ユーザー情報を取得できませんでした", ephemeral: true);
+                        return;
+                    }
+
+                    // カテゴリデータを取得
+                    var categoryData = GetCategoryData(server, category);
+
+                    if (categoryData == null)
+                    {
+                        await FollowupAsync("作成することを許可されていないカテゴリです", ephemeral: true);
+                        return;
+                    }
+
+                    // 権限チェック
+                    if (!HasPermission(categoryData, guildUser))
+                    {
+                        await FollowupAsync("実行権限がありません", ephemeral: true);
+                        return;
+                    }
+
+                    // チャンネル作成
+                    await CreateChannelAsync(name, categoryData.CategoryID, guildUser);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR] makeコマンドエラー: {ex.Message}");
+                    try
+                    {
+                        await FollowupAsync("チャンネルの作成に失敗しました", ephemeral: true);
+                    }
+                    catch
+                    {
+                        // 応答に失敗しても無視（CreateChannelAsync内で既に応答済みの場合等）
+                    }
+                }
+            }
+
+            // ヘルパーメソッド
+            private CategoryDataClass? GetCategoryData(ServerDataClass server, IChannel? category)
+            {
+                // 指定されたカテゴリを優先
                 if (category is ICategoryChannel categoryChannel)
                 {
-                    categorydata = server.Categorys.FirstOrDefault(a => a.CategoryID == categoryChannel.Id);
+                    return server.Categorys.FirstOrDefault(c => c.CategoryID == categoryChannel.Id);
                 }
-                else if (Context.Channel is ITextChannel textChannel && textChannel.CategoryId.HasValue)
+
+                // 現在のチャンネルのカテゴリを使用
+                if (Context.Channel is ITextChannel textChannel && textChannel.CategoryId.HasValue)
                 {
-                    categorydata = server.Categorys.FirstOrDefault(a => a.CategoryID == textChannel.CategoryId.Value);
+                    return server.Categorys.FirstOrDefault(c => c.CategoryID == textChannel.CategoryId.Value);
                 }
 
-                if (categorydata == null)
-                {
-                    await RespondAsync("作成することを許可されていないカテゴリです");
-                    return;
-                }
+                return null;
+            }
 
-                // 権限チェック
-                bool hasPermission = categorydata.UserIds.Contains(Context.User.Id) ||
-                    (guser != null && categorydata.RoleIds.Any(roleId => guser.RoleIds.Contains(roleId)));
+            private bool HasPermission(CategoryDataClass categoryData, IGuildUser user)
+            {
+                // ユーザーIDチェック
+                if (categoryData.UserIds.Contains(user.Id))
+                    return true;
 
-                if (!hasPermission)
-                {
-                    await RespondAsync("実行権限がありません");
-                    return;
-                }
+                // ロールIDチェック
+                if (categoryData.RoleIds.Any(roleId => user.RoleIds.Contains(roleId)))
+                    return true;
 
+                return false;
+            }
+
+            private async Task CreateChannelAsync(string name, ulong categoryId, IGuildUser creator)
+            {
                 ITextChannel? newChannel = null;
 
                 try
                 {
-                    newChannel = await Context.Guild.CreateTextChannelAsync(name,
-                        prop => prop.CategoryId = categorydata.CategoryID);
+                    // チャンネル作成
+                    newChannel = await Context.Guild.CreateTextChannelAsync(
+                        name,
+                        props => props.CategoryId = categoryId);
 
-                    var overwrite = new OverwritePermissions(
+                    // 作成者に管理権限を付与
+                    var permissions = new OverwritePermissions(
                         manageChannel: PermValue.Allow,
                         viewChannel: PermValue.Allow,
                         sendMessages: PermValue.Allow,
@@ -73,20 +124,28 @@ namespace DiscordServerManager.Interactions
                         createPrivateThreads: PermValue.Allow
                     );
 
-                    await newChannel.AddPermissionOverwriteAsync(Context.User, overwrite);
+                    await newChannel.AddPermissionOverwriteAsync(creator, permissions);
 
-                    await RespondAsync($"<#{newChannel.Id}>を作成しました。");
-                    await newChannel.SendMessageAsync($"{Context.User.Mention}が管理するチャンネルです");
+                    // 成功メッセージ
+                    await FollowupAsync($"<#{newChannel.Id}> を作成しました");
+                    await newChannel.SendMessageAsync($"{creator.Mention} が管理するチャンネルです");
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    // エラー時は作成したチャンネルを削除
+                    // エラー時はチャンネルを削除
                     if (newChannel != null)
                     {
-                        try { await newChannel.DeleteAsync(); } catch { }
+                        try
+                        {
+                            await newChannel.DeleteAsync();
+                        }
+                        catch
+                        {
+                            // 削除に失敗しても無視
+                        }
                     }
 
-                    await RespondAsync($"エラー: {e.Message}");
+                    await FollowupAsync($"チャンネルの作成に失敗しました: {ex.Message}", ephemeral: true);
                 }
             }
         }
